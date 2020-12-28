@@ -90,7 +90,8 @@ class Syncer:
     def copy_file_or_dir(self, fl):
 
         if fl[2] == "folder":
-            os.mkdir(self.destPath + fl[0])
+            if not os.path.isdir(self.destPath + fl[0]):
+                os.mkdir(self.destPath + fl[0])
         else:
             try:
                 copy2(self.sourcePath + fl[0], self.destPath + fl[0])

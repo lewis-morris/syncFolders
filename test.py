@@ -165,6 +165,77 @@ class my_tests(unittest.TestCase):
         self.assertTrue(os.path.isdir("test1/sub"))
         self.assertEqual(hash_file("test/sub/file1.txt"), hash_file("test1/sub/file1.txt"))
 
+    def test_rename_folder_in_dest(self):
+        os.mkdir("test/sub")
+        self.sync.sync()
+        self.assertTrue(os.path.isdir("test1/sub"))
+        self.assertTrue(os.path.isdir("test/sub"))
+        os.rename("test/sub","test/sub1")
+        self.sync.sync()
+        self.assertTrue(os.path.isdir("test1/sub1"))
+
+    def test_rename_folder_in_source(self):
+        os.mkdir("test1/sub")
+        self.sync.sync()
+        self.assertTrue(os.path.isdir("test/sub"))
+        self.assertTrue(os.path.isdir("test1/sub"))
+        os.rename("test1/sub", "test1/sub1")
+        self.sync.sync()
+        self.assertTrue(os.path.isdir("test/sub1"))
+
+    def test_file_rename_in_dest(self):
+        # create radom file
+        with open("test/file1.txt", "w") as f:
+            f.writelines(secrets.token_hex(128))
+        self.sync.sync()
+        self.assertTrue(os.path.isfile("test/file1.txt"))
+        self.assertTrue(os.path.isfile("test1/file1.txt"))
+
+        os.rename("test/file1.txt", "test/file11.txt")
+
+        self.sync.sync()
+
+        self.assertTrue(os.path.isfile("test/file11.txt"))
+        self.assertTrue(os.path.isfile("test1/file11.txt"))
+        self.assertTrue((hash_file("test/file11.txt"), hash_file("test1/file11.txt")))
+
+    def test_file_rename_in_source(self):
+
+        # create radom file
+        with open("test1/file1.txt", "w") as f:
+            f.writelines(secrets.token_hex(128))
+        self.sync.sync()
+        self.assertTrue(os.path.isfile("test1/file1.txt"))
+        self.assertTrue(os.path.isfile("test/file1.txt"))
+
+        os.rename("test1/file1.txt", "test1/file11.txt")
+
+        self.sync.sync()
+
+        self.assertTrue(os.path.isfile("test1/file11.txt"))
+        self.assertTrue(os.path.isfile("test/file11.txt"))
+        self.assertTrue((hash_file("test1/file11.txt"), hash_file("test/file11.txt")))
+
+    def test_file_rename_in_subfolder_in_source(self):
+
+        os.mkdir("test/sub")
+        # create radom file
+        with open("test/sub/file1.txt", "w") as f:
+            f.writelines(secrets.token_hex(128))
+
+        self.sync.sync()
+        self.assertTrue(os.path.isfile("test/sub/file1.txt"))
+        self.assertTrue(os.path.isfile("test1/sub/file1.txt"))
+
+        os.rename("test/sub/file1.txt", "test/sub/file11.txt")
+
+        self.sync.sync()
+
+        self.assertTrue(os.path.isfile("test1/sub/file11.txt"))
+        self.assertTrue(os.path.isfile("test/sub/file11.txt"))
+
+        self.assertTrue((hash_file("test1/sub/file11.txt"), hash_file("test/sub/file11.txt")))
+
     def tearDown(self):
         shutil.rmtree("test/")
         shutil.rmtree("test1/")
