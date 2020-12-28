@@ -10,6 +10,7 @@ def write_files(path):
         for y in range(random.randint(0,10)):
             create_file(new_dir)
             time.sleep(0.1)
+
 def create_file(path):
 
     with open(path + "/" + str(random.randint(0,10000)) + ".txt", "w") as f:
