@@ -170,5 +170,5 @@ class my_tests(unittest.TestCase):
         shutil.rmtree("test1/")
 
 if __name__ == '__main__':
-    nose2.main()
+    unittest.main()
 
