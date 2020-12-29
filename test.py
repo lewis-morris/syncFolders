@@ -9,6 +9,8 @@ import os
 from shutil import copyfile
 import pytest
 import nose2
+import random
+
 
 class my_tests(unittest.TestCase):
 
@@ -197,7 +199,7 @@ class my_tests(unittest.TestCase):
 
         self.assertTrue(os.path.isfile("test/file11.txt"))
         self.assertTrue(os.path.isfile("test1/file11.txt"))
-        self.assertTrue((hash_file("test/file11.txt"), hash_file("test1/file11.txt")))
+        self.assertEquals(hash_file("test/file11.txt"), hash_file("test1/file11.txt"))
 
     def test_file_rename_in_source(self):
 
@@ -214,7 +216,7 @@ class my_tests(unittest.TestCase):
 
         self.assertTrue(os.path.isfile("test1/file11.txt"))
         self.assertTrue(os.path.isfile("test/file11.txt"))
-        self.assertTrue((hash_file("test1/file11.txt"), hash_file("test/file11.txt")))
+        self.assertEquals(hash_file("test1/file11.txt"), hash_file("test/file11.txt"))
 
     def test_file_rename_in_subfolder_in_source(self):
 
@@ -234,8 +236,59 @@ class my_tests(unittest.TestCase):
         self.assertTrue(os.path.isfile("test1/sub/file11.txt"))
         self.assertTrue(os.path.isfile("test/sub/file11.txt"))
 
-        self.assertTrue((hash_file("test1/sub/file11.txt"), hash_file("test/sub/file11.txt")))
+        self.assertEqual(hash_file("test1/sub/file11.txt"), hash_file("test/sub/file11.txt"))
 
+    def test_random_sync_to_both_folders(self):
+        
+        changes = []
+        #create random folders
+        for x in range(50):
+            #get source folder name
+            folder_path = random.choice(["test","test1"])
+            op_folder = "test" if folder_path == "test1" else "test1"
+            #name sub folder
+            name = secrets.token_hex(10)
+            #make directory
+            os.mkdir(folder_path + "/" + name)
+            #get new file name
+            file_name = secrets.token_hex(10)
+            #create_file
+            with open(folder_path + "/" + name + "/" + file_name, "w") as f:
+                f.writelines(secrets.token_hex(128))
+            change_type = random.choice(["rename","missing","content_change"])
+            
+            changes.append([folder_path + "/" + name + "/" + file_name,op_folder + "/" + name + "/" + file_name, change_type])
+            
+        self.sync.sync()
+        
+        for action in changes:
+            self.sync.sync()
+            if action[2] == "missing":
+                self.assertTrue(os.path.isfile(action[1]))
+                self.assertEquals(hash_file(action[0]), hash_file(action[1]))
+#            elif action[2] == "rename":
+#                new_name = secrets.token_hex(10)
+#                pos = random.randint(0,1)
+#                pos1 = 1 if pos == 0 else 1
+#                os.rename(action[pos],action[pos]+new_name)
+#                self.sync.sync()
+#                self.assertTrue(os.path.isfile(action[pos1] + new_name))
+#                self.assertEqual(hash_file(action[pos1] + new_name), hash_file(action[pos] + new_name))
+#                self.assertFalse(os.path.isfile(action[pos1]))
+            elif action[2] == "content_change":
+
+                pos = random.randint(0,1)          
+                
+                with open(action[pos], "a+") as f:
+                    f.writelines("Test")
+                    
+                pos1 = 1 if pos == 0 else 1
+                
+                hashed = hash_file(action[pos])
+                self.sync.sync()
+                self.assertEqual(hash_file(action[pos1]), hashed)
+                    
+                
     def tearDown(self):
         shutil.rmtree("test/")
         shutil.rmtree("test1/")
