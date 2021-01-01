@@ -9,7 +9,7 @@ import time
 
 import colored
 from dirhash import dirhash
-from typing import List
+from typing import List, Union
 
 from functions import hash_file
 from colored import stylize
@@ -38,7 +38,7 @@ class _BaseFile:
             self._stored_metadata = self.metadata
 
     @staticmethod
-    def add_metadata(cls, data=None):
+    def add_metadata(cls, data: Union[str, None] = None):
         """ add meta data to file"""
         if data is None:
             # generate random key to file if not supplied
@@ -80,16 +80,16 @@ class _BaseFile:
     def __hash__(self):
         return hash(self.full_path + self.hash)
 
-    def exists(self):
+    def exists(self) -> bool:
         """ does this file actually exist """
         return os.path.isfile(self.full_path) if type(self) == File else os.path.isdir(self.full_path)
 
     # FILE INFORMATION
-    def is_hash_match(self, other):
+    def is_hash_match(self, other) -> bool:
         """ used to check if another file is a hash match """
         return self.hash == other.hash
 
-    def is_metadata_match(self, other):
+    def is_metadata_match(self, other) -> bool:
         """ used to check if another file is a hash match """
         return self.metadata == other.metadata
 
@@ -134,7 +134,7 @@ class _BaseFile:
     # PROPERTIES
 
     @property
-    def root_folder_path(self):
+    def root_folder_path(self) -> str:
         """ recursively get the root folders path """
         if self.parent_folder:
             ans = self.parent_folder.root_folder_path
@@ -143,7 +143,7 @@ class _BaseFile:
         return ans
 
     @property
-    def root_folder(self):
+    def root_folder(self) -> str:
         """ recursively get the root folders path """
         if self.parent_folder:
             ans = self.parent_folder.root_folder
@@ -152,7 +152,7 @@ class _BaseFile:
         return ans
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         """ returns the file name """
         return self._file_name
 
@@ -162,13 +162,13 @@ class _BaseFile:
         self._file_name = name
 
     @property
-    def full_path(self):
+    def full_path(self) -> str:
         """ returns the path of this file including the file name """
         path = self.file_name if self.source == "" else self.source + "/" + self.file_name
         return path
 
     @property
-    def metadata(self):
+    def metadata(self) -> str:
         """ returns the metadata of this file"""
         try:
             return os.getxattr(self.full_path, 'user.data').decode("utf-8")
@@ -176,7 +176,7 @@ class _BaseFile:
             return None
 
     @property
-    def path(self):
+    def path(self) -> str:
         """ returns the path of this file minus the file name """
         path = self.full_path
         root = self.root_folder_path
@@ -184,7 +184,7 @@ class _BaseFile:
         return path[find_root + len(root):]
 
     @property
-    def source_no_root(self):
+    def source_no_root(self) -> str:
         """ retuns the source path of this file minus the root folder path"""
         path = self.full_path
         root = self.root_folder_path
@@ -192,7 +192,7 @@ class _BaseFile:
         return self.source[find_root + len(root):]
 
     @property
-    def source(self):
+    def source(self) -> str:
         """ retuns the souce path of this file"""
         if not self.parent_folder:
             return ""
@@ -202,17 +202,17 @@ class _BaseFile:
             return "/".join(lst)
 
     @property
-    def modified(self):
+    def modified(self) -> datetime:
         """ Returns date last modified"""
         return datetime.datetime.fromtimestamp(self._fl.stat().st_mtime)
 
     @property
-    def accessed(self):
+    def accessed(self) -> datetime:
         """ Returns date last accessed """
         return datetime.datetime.fromtimestamp(self._fl.stat().st_atime)
 
     @property
-    def size(self):
+    def size(self) -> str:
         """
 
         :return:
@@ -237,8 +237,7 @@ class _BaseFile:
         else:
             return f"{size} bytes"
 
-
-    def _get_source_list(self, lst=None):
+    def _get_source_list(self, lst=None) -> list:
         """ used to recursively get the parent folder names"""
         if lst is None:
             lst = []
@@ -254,6 +253,7 @@ class _BaseFile:
             lst = self.parent_folder._get_source_list(lst)
 
         return lst
+
 
 class File(_BaseFile):
     """
@@ -515,12 +515,12 @@ class Folder(_BaseFile):
         return self._get_files(core=True)
 
     @property
-    def files(self) -> List[_BaseFile] :
+    def files(self) -> List[_BaseFile]:
         """ returns  _Base_Files/Files/Folders of all files stored in this folder and all sub folders"""
         return self._get_files()
 
     @files.setter
-    def files(self, files:List[_BaseFile]):
+    def files(self, files: List[_BaseFile]):
         """ sets the files in this directory"""
         self._files = files
 
@@ -670,16 +670,17 @@ class Syncer:
         self.source_folder.load_files()
         self.dest_folder.load_files()
 
-    def reverse_folders(self):
+    def _reverse_folders(self):
         """
         used to switch the running order
         """
         self.source_folder, self.dest_folder = self.dest_folder, self.source_folder
 
-    def init_equilibrium(self) -> None:
+    def _equilibrate_folder(self) -> None:
         """
-        Run this to initially sync both the source and destination folder. On the first run it is unlikely that files
-        will contain matching metadata.
+        Run this to initially sync both the source and destination folder and bring them to a state of equilibrium.
+        On the first run it is unlikely that files will contain matching metadata, and the metadata is the core
+        attribute that will match files/folders together for each sync of the folders.
         """
         source = self.source_folder
         dest = self.dest_folder
@@ -722,22 +723,27 @@ class Syncer:
                 else:
                     pass
 
-    def init_sync(self):
-        """ used to initially sync the folders to a state of equilibrium """
+    def _init_sync(self):
+        """
+        used to initially sync the folders to a state of equilibrium
+        """
         self._get_files()
-        self.init_equilibrium()
-        self.reverse_folders()
+        self._equilibrate_folder()
+        self._reverse_folders()
         self._get_files()
-        self.init_equilibrium()
+        self._equilibrate_folder()
 
     def sync(self):
         """
+        Run to sync folders together - on the first run it will bring each folder in line with the other.
+        Each subsequent run will only check for changes and action them if necessary.
 
         """
+
         # the first run will sync folders to match
         if not self.first_run:
             self.first_run = True
-            self.init_sync()
+            self._init_sync()
 
         # loop both source and destination, switch folders after each iteration.
         self._get_files()
@@ -746,7 +752,7 @@ class Syncer:
                     self.source_folder.files != self.dest_folder.files:
                 # if there is a difference in the current and old folders. Then find what they are and react.
                 self.dest_folder._action_changes(*self.source_folder.get_changes())
-            self.reverse_folders()
+            self._reverse_folders()
 
 
 if __name__ == "__main__":
